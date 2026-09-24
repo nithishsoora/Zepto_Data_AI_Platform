@@ -69,7 +69,10 @@ def clean_data(rows: list[dict]) -> pd.DataFrame:
     if df.empty:
         raise RuntimeError("No rows were scraped.")
 
-    df["price_gbp"] = pd.to_numeric(df["price"].astype(str).str.replace("£", "", regex=False), errors="coerce")
+    df["price_gbp"] = pd.to_numeric(
+        df["price"].astype(str).str.replace("Â", "", regex=False).str.replace("£", "", regex=False).str.replace(",", "", regex=False),
+        errors="coerce",
+    )
     df["rating"] = df["star_rating"].map(RATING_MAP)
     df["in_stock"] = df["availability"].astype(str).str.contains("In stock", case=False, na=False)
 
@@ -136,7 +139,11 @@ def run_queries(df: pd.DataFrame) -> None:
             for name, sql in queries.items():
                 result = pd.read_sql(sql, conn)
                 result.to_csv(OUTPUT_DIR / f"{name}.csv", index=False)
-                f.write(f"## {name}\n\n```sql\n{sql}\n```\n\n{result.to_markdown(index=False)}\n\n")
+                try:
+                    result_markdown = result.to_markdown(index=False)
+                except ImportError:
+                    result_markdown = result.to_string(index=False)
+                f.write(f"## {name}\n\n```sql\n{sql}\n```\n\n{result_markdown}\n\n")
 
         sql_join = pd.read_sql(queries["05_join"], conn)
 
